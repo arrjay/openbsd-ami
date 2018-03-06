@@ -1,0 +1,6 @@
+environment:
+  TERM: dumb
+  LANG: C
+  LC_ALL: C
+  TIMESTAMP: $(date +%s)
+  PACKER_LOG: 1

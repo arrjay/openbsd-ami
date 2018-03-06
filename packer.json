@@ -1,0 +1,77 @@
+{
+  "variables": {
+    "system":			"ec2-ami",
+    "disk_size_mb":		"2048",
+    "qemu_disk_format":		"raw"
+  },
+  "builders":
+  [
+    {
+      "type":			"qemu",
+      "qemu_binary":            "{{user `qemu_binary`}}",
+      "headless":		"{{user `packer_qemu_headless`}}",
+      "disk_size":		"{{user `disk_size_mb`}}",
+      "vm_name":		"system.{{user `qemu_disk_format`}}",
+      "format":			"{{user `qemu_disk_format`}}",
+      "output_directory":	"output-qemu-{{user `system`}}",
+
+      "iso_url":		"https://cloudflare.cdn.openbsd.org/pub/OpenBSD/6.2/amd64/install62.iso",
+      "iso_checksum":		"b7994d29c7db3087db65158901d700fb7d10500b9b7496c1d86b285cabce0a2b",
+      "iso_checksum_type":	"sha256",
+
+      "boot_wait":		"{{user `obsd_boot_wait`}}",
+      "http_directory":		"{{user `system`}}/http",
+      "boot_command":		"{{user `obsd_boot`}}http://{{ .HTTPIP }}:{{ .HTTPPort }}/obsd-install.conf{{user `obsd_boot2`}}",
+      "shutdown_command":	"shutdown -hp now",
+
+      "ssh_username":		"root",
+      "ssh_private_key_file":	"id_rsa",
+
+      "http_port_min":		"9080",
+      "http_port_max":		"9080"
+    }
+  ],
+  "provisioners":
+  [
+    {
+      "type": "file",
+      "source": "stage0_files/",
+      "destination": "/tmp/"
+    },
+    {
+      "type": "shell",
+      "inline": [ "mv /tmp/doas.conf /etc/doas.conf && chown root:wheel /etc/doas.conf" ]
+    },
+    {
+      "environment_vars":
+      [
+        "BUILD_SHA={{user `build_sha`}}",
+        "BUILD_TS={{user `build_ts`}}",
+        "SYSTEM_TAG={{user `system`}}",
+        "MIRROR={{user `mirrors_openbsd`}}"
+      ],
+      "execute_command": "{{user `chmod_x`}} {{ .Path }}; env {{ .Vars }} {{ .Path }}",
+      "type": "shell",
+      "scripts":
+      [
+        "scripts/stamp.sh",
+        "scripts/environs.sh"
+      ]
+    },
+    {
+      "execute_command": "chmod +x {{ .Path }}; env {{ .Vars }} {{ .Path }}",
+      "type": "shell",
+      "scripts":
+      [
+        "scripts/sysprep.sh"
+      ]
+    }
+  ],
+  "post-processors":
+  [
+    {
+      "type": "manifest",
+      "output": "manifests/{{user `system`}}.json"
+    }
+   ]
+}
